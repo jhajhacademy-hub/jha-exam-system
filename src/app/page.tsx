@@ -33,7 +33,10 @@ export default async function TopPage() {
           オンライン認定試験
         </h1>
         <p className="mb-16 max-w-xl leading-8 text-ink-soft">
-          部材・法規・資金計画から接客心理学まで。現場実務に直結する知識を、
+          部材・法規・資金計画から接客心理学まで。
+          <br />
+          現場実務に直結する知識を、
+          <br />
           ◯×形式で一問ずつ丁寧に確認します。
         </p>
 

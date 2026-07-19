@@ -2,13 +2,15 @@
 
 :root {
   --color-paper: #ffffff;
-  --color-ink: #1a1a1a;
-  --color-ink-soft: #4a4a46;
-  --color-khaki: #6b6d46;
-  --color-khaki-light: #9a9c76;
-  --color-khaki-pale: #eef0e6;
-  --color-line: #e4e3dd;
-  --color-alert: #d9383a;
+  --color-ink: #333333;
+  --color-ink-soft: #5c5c5c;
+  --color-khaki: #0e6328;
+  --color-khaki-light: #4f8a64;
+  --color-khaki-pale: #e5eee8;
+  --color-line: #e2e2e2;
+  --color-alert: #be1322;
+  --color-info: #0859aa;
+  --color-accent: #b18b55;
 }
 
 @theme inline {
@@ -20,6 +22,8 @@
   --color-khaki-pale: var(--color-khaki-pale);
   --color-line: var(--color-line);
   --color-alert: var(--color-alert);
+  --color-info: var(--color-info);
+  --color-accent: var(--color-accent);
   --font-jp: var(--font-jp-sans);
   --font-num: var(--font-num-sans);
 }
