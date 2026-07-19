@@ -15,10 +15,9 @@ export default async function TopPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="h-1 bg-khaki" />
-      <header className="flex items-center justify-between border-b border-line px-8 py-6">
-        <Logo logoUrl={settings?.logo_url} />
-        <LinkButton href="/login" variant="outline" size="md">
+      <header className="flex items-center justify-between bg-khaki px-8 py-6">
+        <Logo logoUrl={settings?.logo_url} light />
+        <LinkButton href="/login" variant="outlineLight" size="md">
           ログイン
         </LinkButton>
       </header>
@@ -50,7 +49,7 @@ export default async function TopPage() {
             <p className="mt-2 text-xs tracking-wide text-ink-soft">満点</p>
           </div>
           <div className="px-6 py-6 text-center">
-            <p className="font-num text-3xl text-khaki">{PASS_SCORE}</p>
+            <p className="font-num text-3xl font-bold text-alert">{PASS_SCORE}</p>
             <p className="mt-2 text-xs tracking-wide text-ink-soft">合格基準</p>
           </div>
         </div>
@@ -60,7 +59,7 @@ export default async function TopPage() {
         </LinkButton>
       </main>
 
-      <footer className="border-t border-line px-8 py-6 text-center text-xs text-ink-soft">
+      <footer className="bg-khaki px-8 py-6 text-center text-xs text-paper">
         &copy; JHA住宅設計協会
       </footer>
     </div>

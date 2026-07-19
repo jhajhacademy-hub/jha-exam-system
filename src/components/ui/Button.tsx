@@ -2,7 +2,7 @@ import { clsx } from "clsx";
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "outline" | "ghost" | "danger";
+type Variant = "primary" | "outline" | "outlineLight" | "ghost" | "danger";
 type Size = "md" | "lg";
 
 const base =
@@ -11,6 +11,7 @@ const base =
 const variants: Record<Variant, string> = {
   primary: "bg-khaki text-paper hover:bg-ink active:bg-ink",
   outline: "border border-khaki text-ink hover:bg-khaki hover:text-paper",
+  outlineLight: "border border-paper text-paper hover:bg-paper hover:text-khaki",
   ghost: "text-ink-soft hover:text-khaki",
   danger: "bg-alert text-paper hover:opacity-90",
 };
