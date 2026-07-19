@@ -12,11 +12,11 @@ export function LogoUploadForm() {
   return (
     <form action={formAction} className="max-w-md border border-line p-8">
       <label className="mb-6 flex flex-col gap-2">
-        <span className="text-xs text-ink-soft">ロゴ画像（PNG）</span>
+        <span className="text-xs text-ink-soft">ロゴ画像（PNG / JPEG）</span>
         <input
           name="file"
           type="file"
-          accept="image/png"
+          accept="image/png,image/jpeg"
           required
           className="block w-full text-sm file:mr-4 file:h-10 file:border file:border-ink file:bg-paper file:px-4 file:text-sm"
         />

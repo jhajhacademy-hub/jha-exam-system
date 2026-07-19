@@ -94,7 +94,7 @@ function ExamShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-8 py-12">
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-8 pb-28 pt-12 sm:pb-12">
       <div className="mb-16 flex items-center justify-between gap-8">
         <div className="flex-1">
           <ProgressBar current={index} total={total} />
@@ -122,19 +122,19 @@ function QuestionView({
     <div className="flex flex-1 flex-col justify-center">
       <p className="mb-16 text-center text-lg leading-loose tracking-wide">{questionText}</p>
 
-      <div className="grid grid-cols-2 gap-6">
-        <form action={submitAnswerAction}>
-          <input type="hidden" name="sessionId" value={sessionId} />
-          <input type="hidden" name="index" value={index} />
-          <input type="hidden" name="answer" value="true" />
-          <OxSubmitButton symbol="◯" />
-        </form>
-
-        <form action={submitAnswerAction}>
+      <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t border-line bg-paper sm:static sm:z-auto sm:gap-6 sm:border-0 sm:bg-transparent">
+        <form action={submitAnswerAction} className="contents">
           <input type="hidden" name="sessionId" value={sessionId} />
           <input type="hidden" name="index" value={index} />
           <input type="hidden" name="answer" value="false" />
           <OxSubmitButton symbol="×" />
+        </form>
+
+        <form action={submitAnswerAction} className="contents">
+          <input type="hidden" name="sessionId" value={sessionId} />
+          <input type="hidden" name="index" value={index} />
+          <input type="hidden" name="answer" value="true" />
+          <OxSubmitButton symbol="◯" />
         </form>
       </div>
     </div>
@@ -191,10 +191,15 @@ function ResultView({
         </div>
       )}
 
-      <form action={advanceExamAction} className="mt-auto flex justify-end pt-6">
+      <form
+        action={advanceExamAction}
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper p-4 sm:static sm:z-auto sm:mt-auto sm:flex sm:justify-end sm:border-0 sm:bg-transparent sm:p-0 sm:pt-6"
+      >
         <input type="hidden" name="sessionId" value={sessionId} />
         <input type="hidden" name="index" value={index} />
-        <SubmitButton size="lg">{isLast ? "結果を見る" : "次の問題へ"}</SubmitButton>
+        <SubmitButton size="lg" className="w-full sm:w-auto">
+          {isLast ? "結果を見る" : "次の問題へ"}
+        </SubmitButton>
       </form>
     </div>
   );

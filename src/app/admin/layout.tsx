@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireStaffProfile } from "@/lib/auth";
 import { logoutAction } from "@/app/login/actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { MobileAdminNav } from "@/components/admin/MobileAdminNav";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "システム管理者",
@@ -21,7 +22,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const visibleNav = NAV_ITEMS.filter((item) => item.roles.includes(profile.role));
 
   return (
-    <div className="flex flex-1">
+    <div className="flex flex-1 flex-col md:flex-row">
+      <MobileAdminNav
+        navItems={visibleNav}
+        name={profile.name}
+        roleLabel={ROLE_LABELS[profile.role]}
+        logoutAction={logoutAction}
+      />
       <aside className="hidden w-56 shrink-0 border-r border-line px-6 py-8 md:block">
         <p className="mb-1 text-xs tracking-[0.2em] text-khaki">JHA ADMIN</p>
         <p className="mb-1 text-sm text-ink-soft">{profile.name}</p>

@@ -100,10 +100,21 @@ export function CsvImportStudentsForm() {
 
   return (
     <form action={formAction} className="border border-line p-8">
-      <h2 className="mb-2 text-sm tracking-wide">CSV一括登録</h2>
-      <p className="mb-6 text-xs text-ink-soft">
-        列: student_code, name, age, email(任意), password(任意・空欄で自動生成)
-      </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="mb-2 text-sm tracking-wide">CSV一括登録</h2>
+          <p className="text-xs text-ink-soft">
+            列: student_code, name, age, email(任意), password(任意・空欄で自動生成)
+          </p>
+        </div>
+        <a
+          href="/templates/students_template.csv"
+          download
+          className="shrink-0 whitespace-nowrap text-xs text-khaki underline hover:text-ink"
+        >
+          テンプレートDL
+        </a>
+      </div>
 
       <input
         name="file"

@@ -17,18 +17,24 @@ export async function uploadLogoAction(
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "PNG画像を選択してください。" };
+    return { status: "error", message: "PNGまたはJPEG画像を選択してください。" };
   }
-  if (file.type !== "image/png") {
-    return { status: "error", message: "PNG形式の画像のみアップロードできます。" };
+
+  const extensionByType: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+  };
+  const extension = extensionByType[file.type];
+  if (!extension) {
+    return { status: "error", message: "PNGまたはJPEG形式の画像のみアップロードできます。" };
   }
 
   const admin = createAdminClient();
-  const path = `logo-${Date.now()}.png`;
+  const path = `logo-${Date.now()}.${extension}`;
 
   const { error: uploadError } = await admin.storage
     .from("branding")
-    .upload(path, await file.arrayBuffer(), { contentType: "image/png", upsert: true });
+    .upload(path, await file.arrayBuffer(), { contentType: file.type, upsert: true });
 
   if (uploadError) {
     return { status: "error", message: `アップロードに失敗しました: ${uploadError.message}` };

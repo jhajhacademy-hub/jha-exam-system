@@ -149,11 +149,22 @@ export function CsvImportQuestionsForm() {
 
   return (
     <form action={formAction} className="border border-line p-8">
-      <h2 className="mb-2 text-sm tracking-wide">CSV一括登録</h2>
-      <p className="mb-6 text-xs text-ink-soft">
-        列: category(カテゴリ名), question_no, question_text, answer(◯/×), explanation,
-        trap_note
-      </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="mb-2 text-sm tracking-wide">CSV一括登録</h2>
+          <p className="text-xs text-ink-soft">
+            列: category(カテゴリ名), question_no, question_text, answer(◯/×), explanation,
+            trap_note
+          </p>
+        </div>
+        <a
+          href="/templates/questions_template.csv"
+          download
+          className="shrink-0 whitespace-nowrap text-xs text-khaki underline hover:text-ink"
+        >
+          テンプレートDL
+        </a>
+      </div>
 
       <input
         name="file"
