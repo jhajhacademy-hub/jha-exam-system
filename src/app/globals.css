@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-paper: #ffffff;
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #4a4a46;
+  --color-khaki: #6b6d46;
+  --color-khaki-light: #9a9c76;
+  --color-khaki-pale: #eef0e6;
+  --color-line: #e4e3dd;
+  --color-alert: #d9383a;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: var(--color-paper);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-khaki: var(--color-khaki);
+  --color-khaki-light: var(--color-khaki-light);
+  --color-khaki-pale: var(--color-khaki-pale);
+  --color-line: var(--color-line);
+  --color-alert: var(--color-alert);
+  --font-jp: var(--font-jp-sans);
+  --font-num: var(--font-num-sans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-jp-sans), "Hiragino Kaku Gothic ProN", sans-serif;
+  font-feature-settings: "palt";
+}
+
+.font-num {
+  font-family: var(--font-num-sans), var(--font-jp-sans), sans-serif;
+}
+
+::selection {
+  background: var(--color-khaki-pale);
+  color: var(--color-ink);
 }
