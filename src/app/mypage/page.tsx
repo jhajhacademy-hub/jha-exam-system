@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Button } from "@/components/ui/Button";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDuration } from "@/lib/exam-logic";
 import { startExamAction } from "@/app/exam/actions";
 import { logoutAction } from "@/app/login/actions";
@@ -26,17 +26,15 @@ export default async function MyPage() {
           <h1 className="text-2xl tracking-wide">{profile.name} 様</h1>
         </div>
         <form action={logoutAction}>
-          <Button type="submit" variant="ghost" size="md">
+          <SubmitButton variant="ghost" size="md">
             ログアウト
-          </Button>
+          </SubmitButton>
         </form>
       </div>
 
       <form action={startExamAction} className="mb-20 border border-line p-8 text-center">
         <p className="mb-6 text-sm text-ink-soft">全50問・100点満点・80点以上で合格</p>
-        <Button type="submit" size="lg">
-          テストを受験する
-        </Button>
+        <SubmitButton size="lg">テストを受験する</SubmitButton>
       </form>
 
       <h2 className="mb-6 text-sm tracking-wide text-ink-soft">受験履歴</h2>

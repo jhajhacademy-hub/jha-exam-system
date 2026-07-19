@@ -1,5 +1,6 @@
-export type RoleType = "admin" | "student";
+export type RoleType = "admin" | "operator" | "student";
 export type SessionStatus = "in_progress" | "completed";
+export type AccountStatus = "active" | "inactive";
 
 export type Profile = {
   id: string;
@@ -8,6 +9,7 @@ export type Profile = {
   name: string;
   age: number | null;
   email: string | null;
+  status: AccountStatus;
   created_at: string;
 };
 

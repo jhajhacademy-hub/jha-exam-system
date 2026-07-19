@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminProfile } from "@/lib/auth";
 import { QuestionForm } from "@/components/admin/QuestionForms";
 
 export default async function AdminEditQuestionPage({
@@ -7,6 +8,7 @@ export default async function AdminEditQuestionPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdminProfile();
   const { id } = await params;
   const supabase = await createClient();
 

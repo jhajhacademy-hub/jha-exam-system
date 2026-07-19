@@ -15,6 +15,7 @@ export default async function TopPage() {
 
   return (
     <div className="flex flex-1 flex-col">
+      <div className="h-1 bg-khaki" />
       <header className="flex items-center justify-between border-b border-line px-8 py-6">
         <Logo logoUrl={settings?.logo_url} />
         <LinkButton href="/login" variant="outline" size="md">
@@ -22,7 +23,7 @@ export default async function TopPage() {
         </LinkButton>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-8 py-24">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-8 py-24 text-center">
         <p className="mb-6 font-num text-xs tracking-[0.3em] text-khaki">
           JHA HOUSING DESIGN ACADEMY
         </p>
@@ -36,7 +37,7 @@ export default async function TopPage() {
           ◯×形式で一問ずつ丁寧に確認します。
         </p>
 
-        <div className="mb-16 grid grid-cols-3 divide-x divide-line border-y border-line">
+        <div className="mb-16 grid w-full grid-cols-3 divide-x divide-line border-y border-line">
           <div className="px-6 py-6 text-center">
             <p className="font-num text-3xl text-ink">{TOTAL_QUESTIONS}</p>
             <p className="mt-2 text-xs tracking-wide text-ink-soft">出題数</p>
@@ -51,11 +52,9 @@ export default async function TopPage() {
           </div>
         </div>
 
-        <div>
-          <LinkButton href="/login" size="lg">
-            受講者ログイン
-          </LinkButton>
-        </div>
+        <LinkButton href="/login" size="lg">
+          受講者ログイン
+        </LinkButton>
       </main>
 
       <footer className="border-t border-line px-8 py-6 text-center text-xs text-ink-soft">

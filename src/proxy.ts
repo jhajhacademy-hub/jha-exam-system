@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const ADMIN_PREFIX = "/admin";
+const ADMIN_ONLY_PREFIXES = ["/admin/questions", "/admin/logo", "/admin/users"];
 const STUDENT_PREFIXES = ["/mypage", "/exam"];
 
 export async function proxy(request: NextRequest) {
@@ -32,6 +33,7 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAdminPath = pathname.startsWith(ADMIN_PREFIX);
+  const isAdminOnlyPath = ADMIN_ONLY_PREFIXES.some((p) => pathname.startsWith(p));
   const isStudentPath = STUDENT_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (!user && (isAdminPath || isStudentPath)) {
@@ -41,24 +43,44 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAdminPath) {
+  if (user && (isAdminPath || isStudentPath || pathname === "/login")) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, status")
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (profile?.status !== "active") {
+      await supabase.auth.signOut();
       const url = request.nextUrl.clone();
-      url.pathname = "/mypage";
+      url.pathname = "/login";
+      url.search = "";
+      url.searchParams.set("error", "disabled");
       return NextResponse.redirect(url);
     }
-  }
 
-  if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/mypage";
-    return NextResponse.redirect(url);
+    const isStaff = profile.role === "admin" || profile.role === "operator";
+
+    if (isAdminPath && !isStaff) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/mypage";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
+    if (isAdminOnlyPath && profile.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/dashboard";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
+    if (pathname === "/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = isStaff ? "/admin/dashboard" : "/mypage";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;

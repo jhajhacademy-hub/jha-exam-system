@@ -25,8 +25,28 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   return data;
 }
 
+export function isStaffRole(role: Profile["role"]): boolean {
+  return role === "admin" || role === "operator";
+}
+
+/**
+ * システム管理者(Administrator)のみ許可。問題管理・ロゴ管理・ユーザー管理など
+ * 破壊的/機微な操作のガードに使う。
+ */
 export async function requireAdminProfile(): Promise<Profile> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") redirect("/login");
+  if (!profile || profile.status !== "active") redirect("/login");
+  if (profile.role !== "admin") redirect("/admin/dashboard");
+  return profile;
+}
+
+/**
+ * システム管理者 または 運用担当者(Operator) を許可。
+ * 受験者ダッシュボード閲覧・受験者ID発行など、運用担当者にも開放する画面のガードに使う。
+ */
+export async function requireStaffProfile(): Promise<Profile> {
+  const profile = await getCurrentProfile();
+  if (!profile || profile.status !== "active") redirect("/login");
+  if (!isStaffRole(profile.role)) redirect("/mypage");
   return profile;
 }

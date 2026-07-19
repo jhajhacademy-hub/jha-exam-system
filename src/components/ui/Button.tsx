@@ -6,12 +6,12 @@ type Variant = "primary" | "outline" | "ghost" | "danger";
 type Size = "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 font-medium tracking-wide transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 font-medium tracking-wide transition-all duration-150 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-ink text-paper hover:bg-khaki",
-  outline: "border border-ink text-ink hover:border-khaki hover:text-khaki",
-  ghost: "text-ink-soft hover:text-ink",
+  primary: "bg-khaki text-paper hover:bg-ink active:bg-ink",
+  outline: "border border-khaki text-ink hover:bg-khaki hover:text-paper",
+  ghost: "text-ink-soft hover:text-khaki",
   danger: "bg-alert text-paper hover:opacity-90",
 };
 

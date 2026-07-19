@@ -1,7 +1,7 @@
 "use server";
 
 import Papa from "papaparse";
-import { requireAdminProfile, studentCodeToLoginEmail } from "@/lib/auth";
+import { requireStaffProfile, studentCodeToLoginEmail } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type StudentFormState = {
@@ -18,7 +18,7 @@ export async function createStudentAction(
   _prevState: StudentFormState,
   formData: FormData
 ): Promise<StudentFormState> {
-  await requireAdminProfile();
+  await requireStaffProfile();
 
   const studentCode = String(formData.get("studentCode") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -64,7 +64,7 @@ export async function importStudentsCsvAction(
   _prevState: StudentFormState,
   formData: FormData
 ): Promise<StudentFormState> {
-  await requireAdminProfile();
+  await requireStaffProfile();
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {

@@ -16,10 +16,21 @@ export async function loginAction(formData: FormData) {
   const email = idOrEmail.includes("@") ? idOrEmail : studentCodeToLoginEmail(idOrEmail);
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     redirect(`/login?error=invalid&next=${encodeURIComponent(next)}`);
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("status")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profile?.status !== "active") {
+    await supabase.auth.signOut();
+    redirect(`/login?error=disabled`);
   }
 
   redirect(next);

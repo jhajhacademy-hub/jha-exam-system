@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminProfile } from "@/lib/auth";
 import {
   QuestionForm,
   CsvImportQuestionsForm,
@@ -6,6 +7,7 @@ import {
 } from "@/components/admin/QuestionForms";
 
 export default async function AdminNewQuestionPage() {
+  await requireAdminProfile();
   const supabase = await createClient();
   const { data: categories } = await supabase
     .from("categories")

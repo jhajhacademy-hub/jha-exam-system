@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/components/ui/Logo";
-import { Button } from "@/components/ui/Button";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { loginAction } from "./actions";
 
 const ERROR_MESSAGES: Record<string, string> = {
   missing: "受講者IDとパスワードを入力してください。",
   invalid: "IDまたはパスワードが正しくありません。",
+  disabled: "このアカウントは無効化されています。管理者にお問い合わせください。",
 };
 
 export default async function LoginPage({
@@ -36,7 +37,7 @@ export default async function LoginPage({
       <form action={loginAction} className="w-full max-w-sm">
         <input type="hidden" name="next" value={next} />
 
-        <h1 className="mb-8 text-center text-lg tracking-wide">受講者ログイン</h1>
+        <h1 className="mb-8 text-center text-lg tracking-wide">ログイン</h1>
 
         {errorMessage && (
           <p className="mb-6 border border-alert/40 bg-alert/5 px-4 py-3 text-center text-xs text-alert">
@@ -45,7 +46,7 @@ export default async function LoginPage({
         )}
 
         <label className="mb-5 block">
-          <span className="mb-2 block text-xs tracking-wide text-ink-soft">受講者ID</span>
+          <span className="mb-2 block text-xs tracking-wide text-ink-soft">受講者ID / メールアドレス</span>
           <input
             name="id"
             type="text"
@@ -68,9 +69,7 @@ export default async function LoginPage({
           />
         </label>
 
-        <Button type="submit" className="w-full">
-          ログイン
-        </Button>
+        <SubmitButton className="w-full">ログイン</SubmitButton>
       </form>
     </div>
   );

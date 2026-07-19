@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminProfile } from "@/lib/auth";
 import { LinkButton } from "@/components/ui/Button";
 import { deleteQuestionAction } from "./actions";
 
@@ -8,6 +9,7 @@ export default async function AdminQuestionsPage({
 }: {
   searchParams: Promise<{ category?: string; q?: string }>;
 }) {
+  await requireAdminProfile();
   const params = await searchParams;
   const categoryId = params.category ?? "";
   const q = (params.q ?? "").trim();

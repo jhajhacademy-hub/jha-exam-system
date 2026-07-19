@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminProfile } from "@/lib/auth";
 import { Logo } from "@/components/ui/Logo";
 import { LogoUploadForm } from "@/components/admin/LogoUploadForm";
 
 export default async function AdminLogoPage() {
+  await requireAdminProfile();
   const supabase = await createClient();
   const { data: settings } = await supabase
     .from("site_settings")

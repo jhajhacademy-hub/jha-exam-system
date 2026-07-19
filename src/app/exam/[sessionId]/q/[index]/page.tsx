@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Timer } from "@/components/exam/Timer";
-import { Button } from "@/components/ui/Button";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { OxSubmitButton } from "@/components/exam/OxSubmitButton";
 import { submitAnswerAction, advanceExamAction } from "@/app/exam/actions";
 
 export default async function ExamQuestionPage({
@@ -126,24 +127,14 @@ function QuestionView({
           <input type="hidden" name="sessionId" value={sessionId} />
           <input type="hidden" name="index" value={index} />
           <input type="hidden" name="answer" value="true" />
-          <button
-            type="submit"
-            className="flex h-32 w-full flex-col items-center justify-center gap-2 border border-line transition-colors hover:border-khaki hover:text-khaki"
-          >
-            <span className="text-5xl font-light">◯</span>
-          </button>
+          <OxSubmitButton symbol="◯" />
         </form>
 
         <form action={submitAnswerAction}>
           <input type="hidden" name="sessionId" value={sessionId} />
           <input type="hidden" name="index" value={index} />
           <input type="hidden" name="answer" value="false" />
-          <button
-            type="submit"
-            className="flex h-32 w-full flex-col items-center justify-center gap-2 border border-line transition-colors hover:border-alert hover:text-alert"
-          >
-            <span className="text-5xl font-light">×</span>
-          </button>
+          <OxSubmitButton symbol="×" />
         </form>
       </div>
     </div>
@@ -203,9 +194,7 @@ function ResultView({
       <form action={advanceExamAction} className="mt-auto flex justify-end pt-6">
         <input type="hidden" name="sessionId" value={sessionId} />
         <input type="hidden" name="index" value={index} />
-        <Button type="submit" size="lg">
-          {isLast ? "結果を見る" : "次の問題へ"}
-        </Button>
+        <SubmitButton size="lg">{isLast ? "結果を見る" : "次の問題へ"}</SubmitButton>
       </form>
     </div>
   );
