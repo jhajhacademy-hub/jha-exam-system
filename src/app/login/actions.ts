@@ -24,7 +24,7 @@ export async function loginAction(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("status")
+    .select("role, status")
     .eq("id", data.user.id)
     .single();
 
@@ -33,7 +33,10 @@ export async function loginAction(formData: FormData) {
     redirect(`/login?error=disabled`);
   }
 
-  redirect(next);
+  const isStaff = profile.role === "admin" || profile.role === "operator";
+  const destination = next === "/mypage" && isStaff ? "/admin/dashboard" : next;
+
+  redirect(destination);
 }
 
 export async function logoutAction() {
