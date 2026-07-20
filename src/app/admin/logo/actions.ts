@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { requireAdminProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -50,6 +51,10 @@ export async function uploadLogoAction(
   if (updateError) {
     return { status: "error", message: `設定の保存に失敗しました: ${updateError.message}` };
   }
+
+  revalidatePath("/admin/logo");
+  revalidatePath("/");
+  revalidatePath("/login");
 
   return { status: "success", message: "ロゴを更新しました。" };
 }
