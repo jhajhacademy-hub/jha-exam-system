@@ -1,16 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { pickBalancedQuestions, scoreExam, TOTAL_QUESTIONS } from "@/lib/exam-logic";
+import type { Database } from "@/types/database.types";
 
-export async function startExamAction() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+async function createNewExamSession(
+  supabase: SupabaseClient<Database>,
+  studentId: string
+): Promise<string> {
   const { data: questions, error: qError } = await supabase
     .from("questions")
     .select("id, category_id");
@@ -33,7 +33,7 @@ export async function startExamAction() {
   const { data: session, error } = await supabase
     .from("exam_sessions")
     .insert({
-      student_id: user.id,
+      student_id: studentId,
       question_ids: questionIds,
       current_index: 0,
       status: "in_progress",
@@ -43,7 +43,43 @@ export async function startExamAction() {
 
   if (error) throw error;
 
-  redirect(`/exam/${session.id}/q/1`);
+  return session.id;
+}
+
+export async function startExamAction() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const sessionId = await createNewExamSession(supabase, user.id);
+
+  redirect(`/exam/${sessionId}/q/1`);
+}
+
+export async function discardAndRestartExamAction(formData: FormData) {
+  const staleSessionId = String(formData.get("sessionId") ?? "");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  if (staleSessionId) {
+    const admin = createAdminClient();
+    await admin
+      .from("exam_sessions")
+      .delete()
+      .eq("id", staleSessionId)
+      .eq("student_id", user.id)
+      .eq("status", "in_progress");
+  }
+
+  const sessionId = await createNewExamSession(supabase, user.id);
+
+  redirect(`/exam/${sessionId}/q/1`);
 }
 
 export async function submitAnswerAction(formData: FormData) {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LinkButton } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
@@ -16,7 +17,9 @@ export default async function TopPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between bg-khaki px-8 py-6">
-        <Logo logoUrl={settings?.logo_url} light />
+        <Link href="/">
+          <Logo logoUrl={settings?.logo_url} light />
+        </Link>
         <LinkButton href="/login" variant="outlineLight" size="md">
           ログイン
         </LinkButton>
