@@ -11,7 +11,10 @@ const ROLE_LABELS: Record<string, string> = {
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "受験者ダッシュボード", roles: ["admin", "operator"] },
+  { href: "/admin/students", label: "受験者一覧", roles: ["admin", "operator"] },
   { href: "/admin/students/new", label: "受験者ID作成", roles: ["admin", "operator"] },
+  { href: "/admin/retake-requests", label: "再受験申請", roles: ["admin", "operator"] },
+  { href: "/admin/analytics", label: "正答率分析", roles: ["admin", "operator"] },
   { href: "/admin/questions", label: "問題管理", roles: ["admin"] },
   { href: "/admin/logo", label: "ロゴ管理", roles: ["admin"] },
   { href: "/admin/users", label: "ユーザー管理", roles: ["admin"] },

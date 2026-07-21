@@ -53,9 +53,65 @@ export async function startExamAction() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { count: completedCount } = await supabase
+    .from("exam_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("student_id", user.id)
+    .eq("status", "completed");
+
+  // 1回目は無条件。2回目以降は承認済みの再受験申請が必要。
+  if ((completedCount ?? 0) > 0) {
+    const { data: approvedRequest } = await supabase
+      .from("retake_requests")
+      .select("id")
+      .eq("student_id", user.id)
+      .eq("status", "approved")
+      .order("requested_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!approvedRequest) {
+      redirect("/mypage");
+    }
+
+    const admin = createAdminClient();
+    await admin
+      .from("retake_requests")
+      .update({ status: "used", resolved_at: new Date().toISOString() })
+      .eq("id", approvedRequest.id);
+  }
+
   const sessionId = await createNewExamSession(supabase, user.id);
 
   redirect(`/exam/${sessionId}/q/1`);
+}
+
+export async function requestRetakeAction() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: existing } = await supabase
+    .from("retake_requests")
+    .select("id, status")
+    .eq("student_id", user.id)
+    .order("requested_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing && (existing.status === "pending" || existing.status === "approved")) {
+    redirect("/mypage");
+  }
+
+  const { error } = await supabase.from("retake_requests").insert({
+    student_id: user.id,
+    status: "pending",
+  });
+  if (error) throw error;
+
+  redirect("/mypage");
 }
 
 export async function discardAndRestartExamAction(formData: FormData) {

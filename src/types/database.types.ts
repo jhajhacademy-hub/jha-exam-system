@@ -61,6 +61,17 @@ export type SiteSettings = {
   updated_at: string;
 };
 
+export type RetakeStatus = "pending" | "approved" | "denied" | "used";
+
+export type RetakeRequest = {
+  id: string;
+  student_id: string;
+  status: RetakeStatus;
+  requested_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -142,6 +153,20 @@ export type Database = {
         Insert: Partial<SiteSettings>;
         Update: Partial<SiteSettings>;
         Relationships: [];
+      };
+      retake_requests: {
+        Row: RetakeRequest;
+        Insert: Partial<RetakeRequest> & Pick<RetakeRequest, "student_id">;
+        Update: Partial<RetakeRequest>;
+        Relationships: [
+          {
+            foreignKeyName: "retake_requests_student_id_fkey";
+            columns: ["student_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;

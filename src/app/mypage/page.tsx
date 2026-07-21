@@ -4,7 +4,11 @@ import { getCurrentProfile } from "@/lib/auth";
 import { LinkButton } from "@/components/ui/Button";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDuration } from "@/lib/exam-logic";
-import { startExamAction, discardAndRestartExamAction } from "@/app/exam/actions";
+import {
+  startExamAction,
+  discardAndRestartExamAction,
+  requestRetakeAction,
+} from "@/app/exam/actions";
 import { logoutAction } from "@/app/login/actions";
 
 export default async function MyPage() {
@@ -38,6 +42,16 @@ export default async function MyPage() {
     const resumeIndex = Math.min((answeredCount ?? 0) + 1, total);
     resumeInfo = { sessionId: inProgressSession.id, resumeIndex, total };
   }
+
+  const hasCompletedBefore = (sessions ?? []).length > 0;
+
+  const { data: latestRetakeRequest } = await supabase
+    .from("retake_requests")
+    .select("status")
+    .eq("student_id", profile.id)
+    .order("requested_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-8 py-16">
@@ -73,10 +87,28 @@ export default async function MyPage() {
             </SubmitButton>
           </form>
         </div>
-      ) : (
+      ) : !hasCompletedBefore ? (
         <form action={startExamAction} className="mb-20 border border-line p-8 text-center">
           <p className="mb-6 text-sm text-ink-soft">全50問・100点満点・80点以上で合格</p>
           <SubmitButton size="lg">テストを受験する</SubmitButton>
+        </form>
+      ) : latestRetakeRequest?.status === "approved" ? (
+        <form action={startExamAction} className="mb-20 border border-khaki bg-khaki-pale p-8 text-center">
+          <p className="mb-6 text-sm">再受験が承認されました。全50問・100点満点・80点以上で合格</p>
+          <SubmitButton size="lg">テストを受験する</SubmitButton>
+        </form>
+      ) : latestRetakeRequest?.status === "pending" ? (
+        <div className="mb-20 border border-line p-8 text-center">
+          <p className="text-sm text-ink-soft">
+            再受験申請中です。管理者の承認をお待ちください。
+          </p>
+        </div>
+      ) : (
+        <form action={requestRetakeAction} className="mb-20 border border-line p-8 text-center">
+          <p className="mb-6 text-sm text-ink-soft">
+            再受験には管理者の承認が必要です。申請すると管理画面に通知されます。
+          </p>
+          <SubmitButton size="lg">再受験申請をする</SubmitButton>
         </form>
       )}
 
