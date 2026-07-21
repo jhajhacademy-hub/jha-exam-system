@@ -166,13 +166,17 @@ function ResultView({
     <div className="flex flex-1 flex-col">
       <div className="mb-10 text-center">
         <span
-          className={`inline-flex h-20 w-20 items-center justify-center border text-3xl font-light ${
-            isCorrect ? "border-khaki text-khaki" : "border-alert text-alert"
+          className={`inline-flex h-20 w-20 items-center justify-center border text-3xl font-bold ${
+            isCorrect ? "border-info text-info" : "border-alert text-alert"
           }`}
         >
           {correctAnswer ? "◯" : "×"}
         </span>
-        <p className={`mt-4 text-sm tracking-widest ${isCorrect ? "text-khaki" : "text-alert"}`}>
+        <p
+          className={`mt-4 text-sm font-bold tracking-widest ${
+            isCorrect ? "text-info" : "text-alert"
+          }`}
+        >
           {isCorrect ? "正解" : "不正解"}
         </p>
       </div>
