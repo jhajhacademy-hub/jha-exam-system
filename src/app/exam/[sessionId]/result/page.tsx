@@ -27,6 +27,24 @@ export default async function ExamResultPage({
 
   const fullScore = session.question_ids.length * POINTS_PER_QUESTION;
 
+  const { data: rawAnswers } = await supabase
+    .from("exam_answers")
+    .select("order_index, user_answer, is_correct, questions(question_text, explanation, answer)")
+    .eq("session_id", sessionId)
+    .order("order_index", { ascending: true });
+
+  const answers = (rawAnswers ?? []).map((a) => {
+    const question = Array.isArray(a.questions) ? a.questions[0] : a.questions;
+    return {
+      orderIndex: a.order_index,
+      userAnswer: a.user_answer,
+      isCorrect: a.is_correct,
+      questionText: question?.question_text ?? "",
+      explanation: question?.explanation ?? "",
+      correctAnswer: question?.answer ?? false,
+    };
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-8 py-16 text-center">
       {session.passed && <PassEffect />}
@@ -61,9 +79,38 @@ export default async function ExamResultPage({
         {session.passed ? "を上回りました。" : "に届きませんでした。"}
       </p>
 
-      <LinkButton href="/mypage" size="lg">
+      <LinkButton href="/mypage" size="lg" className="mb-12">
         マイページへ戻る
       </LinkButton>
+
+      <details className="group w-full text-left">
+        <summary className="inline-flex h-11 w-full cursor-pointer list-none items-center justify-center border border-khaki px-6 text-sm tracking-wide text-ink transition-colors duration-150 hover:bg-khaki hover:text-paper [&::-webkit-details-marker]:hidden">
+          詳細
+        </summary>
+
+        <div className="mt-10 text-left">
+          {answers.map((a) => (
+            <div key={a.orderIndex} className="border-t border-line py-8 first:border-t-0">
+              <div className="mb-4 flex items-center gap-4 text-xs tracking-wide text-ink-soft">
+                <span className="font-num">問{a.orderIndex}</span>
+                <span>
+                  正答
+                  <span className="ml-1 font-num text-info">{a.correctAnswer ? "◯" : "×"}</span>
+                </span>
+                <span className={a.isCorrect ? "text-info" : "text-alert"}>
+                  あなたの回答
+                  <span className="ml-1 font-num">{a.userAnswer ? "◯" : "×"}</span>
+                </span>
+              </div>
+              <p className="mb-4 leading-loose tracking-wide">{a.questionText}</p>
+              <div>
+                <p className="mb-2 text-xs tracking-wide text-khaki">解説</p>
+                <p className="leading-8 text-ink-soft">{a.explanation}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pickBalancedQuestions, scoreExam, TOTAL_QUESTIONS } from "@/lib/exam-logic";
+import { sendExamCompletionEmail } from "@/lib/mailer";
 import type { Database } from "@/types/database.types";
 
 async function createNewExamSession(
@@ -151,14 +152,16 @@ export async function submitAnswerAction(formData: FormData) {
 
   const { data: session, error: sessionError } = await supabase
     .from("exam_sessions")
-    .select("id, student_id, question_ids, status")
+    .select("id, student_id, question_ids, status, started_at")
     .eq("id", sessionId)
     .single();
 
   if (sessionError || !session || session.student_id !== user.id) {
     redirect("/mypage");
   }
+  if (session.status === "completed") redirect(`/exam/${sessionId}/result`);
 
+  const total = session.question_ids.length;
   const questionId = session.question_ids[index - 1];
   if (!questionId) redirect(`/exam/${sessionId}/q/1`);
 
@@ -180,32 +183,9 @@ export async function submitAnswerAction(formData: FormData) {
     is_correct: isCorrect,
   });
   if (insertError && insertError.code !== "23505") {
-    // 23505 = unique_violation (二重送信などによる重複回答は無視して再表示する)
+    // 23505 = unique_violation (二重送信などによる重複回答は無視して先へ進める)
     throw insertError;
   }
-
-  redirect(`/exam/${sessionId}/q/${index}`);
-}
-
-export async function advanceExamAction(formData: FormData) {
-  const sessionId = String(formData.get("sessionId"));
-  const index = Number(formData.get("index"));
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: session } = await supabase
-    .from("exam_sessions")
-    .select("id, student_id, question_ids, started_at")
-    .eq("id", sessionId)
-    .single();
-
-  if (!session || session.student_id !== user.id) redirect("/mypage");
-
-  const total = session.question_ids.length;
 
   if (index >= total) {
     const { data: answers, error: answersError } = await supabase
@@ -235,13 +215,27 @@ export async function advanceExamAction(formData: FormData) {
       .eq("id", sessionId);
     if (updateError) throw updateError;
 
+    const [{ data: studentProfile }, { data: settings }] = await Promise.all([
+      supabase.from("profiles").select("name, age, student_code, email").eq("id", user.id).single(),
+      supabase.from("site_settings").select("notification_emails").eq("id", 1).single(),
+    ]);
+
+    if (studentProfile && settings?.notification_emails?.length) {
+      await sendExamCompletionEmail(settings.notification_emails, {
+        name: studentProfile.name,
+        age: studentProfile.age,
+        studentCode: studentProfile.student_code,
+        email: studentProfile.email,
+        finishedAt,
+        score,
+        passed,
+      });
+    }
+
     redirect(`/exam/${sessionId}/result`);
   }
 
-  await supabase
-    .from("exam_sessions")
-    .update({ current_index: index })
-    .eq("id", sessionId);
+  await supabase.from("exam_sessions").update({ current_index: index }).eq("id", sessionId);
 
   redirect(`/exam/${sessionId}/q/${index + 1}`);
 }

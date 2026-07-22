@@ -16,13 +16,19 @@ export function OxSubmitButton({ symbol }: OxSubmitButtonProps) {
       type="submit"
       disabled={pending}
       className={clsx(
-        "flex h-20 w-full flex-col items-center justify-center gap-2 border border-line transition-all duration-150 sm:h-32",
+        "flex h-20 w-full flex-col items-center justify-center gap-2 border transition-all duration-150 sm:h-32",
         "active:scale-[0.97] disabled:pointer-events-none",
-        isMaru ? "hover:border-khaki hover:text-khaki" : "hover:border-alert hover:text-alert",
-        pending && (isMaru ? "border-khaki bg-khaki-pale text-khaki" : "border-alert bg-alert/5 text-alert")
+        "sm:border-line sm:bg-transparent sm:text-ink",
+        isMaru
+          ? "border-alert bg-alert text-paper sm:hover:border-khaki sm:hover:bg-transparent sm:hover:text-khaki"
+          : "border-info bg-info text-paper sm:hover:border-alert sm:hover:bg-transparent sm:hover:text-alert",
+        pending &&
+          (isMaru
+            ? "sm:border-khaki sm:bg-khaki-pale sm:text-khaki"
+            : "sm:border-alert sm:bg-alert/5 sm:text-alert")
       )}
     >
-      <span className="text-4xl font-light sm:text-5xl">{symbol}</span>
+      <span className="text-4xl font-bold sm:text-5xl sm:font-light">{symbol}</span>
     </button>
   );
 }

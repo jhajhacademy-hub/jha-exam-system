@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/admin/analytics", label: "正答率分析", roles: ["admin", "operator"] },
   { href: "/admin/questions", label: "問題管理", roles: ["admin"] },
   { href: "/admin/logo", label: "ロゴ管理", roles: ["admin"] },
+  { href: "/admin/notifications", label: "通知メール設定", roles: ["admin"] },
   { href: "/admin/users", label: "ユーザー管理", roles: ["admin"] },
 ];
 
