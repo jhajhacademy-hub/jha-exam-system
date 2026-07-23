@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pickBalancedQuestions, scoreExam, TOTAL_QUESTIONS } from "@/lib/exam-logic";
-import { sendExamCompletionEmail } from "@/lib/mailer";
+import { sendExamCompletionEmail, sendRetakeRequestEmail } from "@/lib/mailer";
 import type { Database } from "@/types/database.types";
 
 async function createNewExamSession(
@@ -106,11 +106,28 @@ export async function requestRetakeAction() {
     redirect("/mypage");
   }
 
+  const requestedAt = new Date();
   const { error } = await supabase.from("retake_requests").insert({
     student_id: user.id,
     status: "pending",
+    requested_at: requestedAt.toISOString(),
   });
   if (error) throw error;
+
+  const [{ data: studentProfile }, { data: settings }] = await Promise.all([
+    supabase.from("profiles").select("name, age, student_code, email").eq("id", user.id).single(),
+    supabase.from("site_settings").select("retake_notification_emails").eq("id", 1).single(),
+  ]);
+
+  if (studentProfile && settings?.retake_notification_emails?.length) {
+    await sendRetakeRequestEmail(settings.retake_notification_emails, {
+      name: studentProfile.name,
+      age: studentProfile.age,
+      studentCode: studentProfile.student_code,
+      email: studentProfile.email,
+      requestedAt,
+    });
+  }
 
   redirect("/mypage");
 }

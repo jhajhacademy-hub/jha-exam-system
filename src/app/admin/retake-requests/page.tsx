@@ -74,7 +74,7 @@ export default async function AdminRetakeRequestsPage() {
                   <span className="ml-2 font-num text-xs text-ink-soft">{r.student_code}</span>
                 </td>
                 <td className="py-4 font-num text-ink-soft">
-                  {new Date(r.requested_at).toLocaleString("ja-JP")}
+                  {new Date(r.requested_at).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
                 </td>
                 <td className="py-4 text-right">
                   <form action={approveRetakeAction} className="mr-3 inline-block">
@@ -119,11 +119,13 @@ export default async function AdminRetakeRequestsPage() {
                   <span className="ml-2 font-num text-xs text-ink-soft">{r.student_code}</span>
                 </td>
                 <td className="py-4 font-num text-ink-soft">
-                  {new Date(r.requested_at).toLocaleString("ja-JP")}
+                  {new Date(r.requested_at).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
                 </td>
                 <td className="py-4 text-xs">{STATUS_LABELS[r.status] ?? r.status}</td>
                 <td className="py-4 text-right font-num text-ink-soft">
-                  {r.resolved_at ? new Date(r.resolved_at).toLocaleString("ja-JP") : "-"}
+                  {r.resolved_at
+                    ? new Date(r.resolved_at).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })
+                    : "-"}
                 </td>
               </tr>
             ))}

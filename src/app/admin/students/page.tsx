@@ -107,7 +107,9 @@ export default async function AdminStudentsPage({
   }
 
   function fmt(dateStr: string | null) {
-    return dateStr ? new Date(dateStr).toLocaleDateString("ja-JP") : "-";
+    return dateStr
+      ? new Date(dateStr).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
+      : "-";
   }
 
   return (

@@ -132,7 +132,7 @@ export default async function MyPage() {
             {sessions.map((s) => (
               <tr key={s.id} className="border-b border-line">
                 <td className="py-4 font-num">
-                  {new Date(s.started_at).toLocaleDateString("ja-JP")}
+                  {new Date(s.started_at).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
                 </td>
                 <td className="py-4 text-right font-num">{s.total_score}点</td>
                 <td className="py-4 text-right">

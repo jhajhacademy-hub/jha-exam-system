@@ -200,7 +200,7 @@ export default async function AdminDashboardPage({
           {rows.map((r) => (
             <tr key={r.id} className="border-b border-line">
               <td className="py-4 font-num">
-                {new Date(r.started_at).toLocaleDateString("ja-JP")}
+                {new Date(r.started_at).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
               </td>
               <td className="py-4">
                 <Link href={`/admin/dashboard/${r.id}`} className="hover:text-khaki">

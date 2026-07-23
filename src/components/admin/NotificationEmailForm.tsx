@@ -2,15 +2,17 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
-import {
-  addNotificationEmailAction,
-  type NotificationFormState,
-} from "@/app/admin/notifications/actions";
+import type { NotificationFormState } from "@/app/admin/notifications/actions";
 
 const initialState: NotificationFormState = { status: "idle", message: "" };
 
-export function NotificationEmailForm() {
-  const [state, formAction, pending] = useActionState(addNotificationEmailAction, initialState);
+type Action = (
+  prevState: NotificationFormState,
+  formData: FormData
+) => Promise<NotificationFormState>;
+
+export function NotificationEmailForm({ action }: { action: Action }) {
+  const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
     <form action={formAction} className="max-w-md border border-line p-8">

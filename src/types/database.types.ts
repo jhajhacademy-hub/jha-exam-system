@@ -59,6 +59,7 @@ export type SiteSettings = {
   id: number;
   logo_url: string | null;
   notification_emails: string[];
+  retake_notification_emails: string[];
   updated_at: string;
 };
 
