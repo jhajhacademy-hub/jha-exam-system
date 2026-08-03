@@ -93,10 +93,27 @@ export async function deleteQuestionAction(formData: FormData) {
   await requireAdminProfile();
   const admin = createAdminClient();
   const id = String(formData.get("id") ?? "");
+  const category = String(formData.get("category") ?? "");
+  const q = String(formData.get("q") ?? "");
+
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (q) params.set("q", q);
+
   if (id) {
-    await admin.from("questions").delete().eq("id", id);
+    // 過去の受験記録(exam_answers)から参照され続けるため物理削除はせず、
+    // deleted_at を立てて出題対象から除外する(論理削除)。
+    const { error } = await admin
+      .from("questions")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      params.set("error", `削除に失敗しました: ${error.message}`);
+    }
   }
-  redirect("/admin/questions");
+
+  const query = params.toString();
+  redirect(`/admin/questions${query ? `?${query}` : ""}`);
 }
 
 export async function createCategoryAction(formData: FormData) {

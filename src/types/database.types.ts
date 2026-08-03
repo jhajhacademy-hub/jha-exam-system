@@ -29,6 +29,7 @@ export type Question = {
   trap_note: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 };
 
 export type ExamSession = {

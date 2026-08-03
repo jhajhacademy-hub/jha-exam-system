@@ -14,7 +14,8 @@ async function createNewExamSession(
 ): Promise<string> {
   const { data: questions, error: qError } = await supabase
     .from("questions")
-    .select("id, category_id");
+    .select("id, category_id")
+    .is("deleted_at", null);
   if (qError) throw qError;
   if (!questions || questions.length === 0) {
     throw new Error("出題可能な問題が登録されていません。管理者にお問い合わせください。");

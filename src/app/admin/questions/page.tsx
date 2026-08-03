@@ -7,7 +7,7 @@ import { deleteQuestionAction } from "./actions";
 export default async function AdminQuestionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; error?: string }>;
 }) {
   await requireAdminProfile();
   const params = await searchParams;
@@ -23,6 +23,7 @@ export default async function AdminQuestionsPage({
   let query = supabase
     .from("questions")
     .select("id, question_no, question_text, answer, categories(name)")
+    .is("deleted_at", null)
     .order("question_no");
 
   if (categoryId) query = query.eq("category_id", categoryId);
@@ -38,6 +39,12 @@ export default async function AdminQuestionsPage({
           問題を追加
         </LinkButton>
       </div>
+
+      {params.error && (
+        <p className="mb-6 border border-alert bg-alert/5 px-4 py-3 text-sm text-alert">
+          {params.error}
+        </p>
+      )}
 
       <form method="get" className="mb-10 flex flex-wrap items-end gap-6 border-b border-line pb-8">
         <label className="flex flex-col gap-2">
@@ -100,6 +107,8 @@ export default async function AdminQuestionsPage({
                   </Link>
                   <form action={deleteQuestionAction} className="inline">
                     <input type="hidden" name="id" value={q2.id} />
+                    <input type="hidden" name="category" value={categoryId} />
+                    <input type="hidden" name="q" value={q} />
                     <button type="submit" className="text-xs text-ink-soft hover:text-alert">
                       削除
                     </button>

@@ -20,7 +20,7 @@ export default async function AdminAnalyticsPage({
 
   const [{ data: answers }, { data: questions }, { data: categories }] = await Promise.all([
     supabase.from("exam_answers").select("question_id, category_id, is_correct"),
-    supabase.from("questions").select("id, question_no, question_text, category_id"),
+    supabase.from("questions").select("id, question_no, question_text, category_id, deleted_at"),
     supabase.from("categories").select("id, name, sort_order").order("sort_order"),
   ]);
 
@@ -58,6 +58,7 @@ export default async function AdminAnalyticsPage({
     total: number;
     correct: number;
     accuracy: number;
+    deleted: boolean;
   };
 
   let rows: Row[] = (questions ?? []).map((q) => {
@@ -71,8 +72,11 @@ export default async function AdminAnalyticsPage({
       total: stat.total,
       correct: stat.correct,
       accuracy: stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : -1,
+      deleted: q.deleted_at != null,
     };
   });
+
+  const activeQuestionCount = (questions ?? []).filter((q) => !q.deleted_at).length;
 
   if (categoryFilter !== "all") {
     rows = rows.filter((r) => r.category_id === categoryFilter);
@@ -122,7 +126,7 @@ export default async function AdminAnalyticsPage({
           <p className="mt-2 text-xs tracking-wide text-ink-soft">全体正答率</p>
         </div>
         <div className="px-6 py-6 text-center">
-          <p className="font-num text-3xl text-ink">{questions?.length ?? 0}</p>
+          <p className="font-num text-3xl text-ink">{activeQuestionCount}</p>
           <p className="mt-2 text-xs tracking-wide text-ink-soft">登録問題数</p>
         </div>
       </div>
@@ -189,7 +193,12 @@ export default async function AdminAnalyticsPage({
               <tr key={r.id} className="border-b border-line">
                 <td className="py-3 font-num text-ink-soft">{r.question_no}</td>
                 <td className="py-3 text-xs text-ink-soft">{r.categoryName}</td>
-                <td className="py-3">{r.question_text.slice(0, 50)}</td>
+                <td className="py-3">
+                  {r.question_text.slice(0, 50)}
+                  {r.deleted && (
+                    <span className="ml-2 text-xs text-ink-soft">(削除済み)</span>
+                  )}
+                </td>
                 <td className="py-3 text-right font-num">{r.total}</td>
                 <td
                   className={`py-3 text-right font-num ${
