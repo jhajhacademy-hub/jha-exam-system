@@ -1,11 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserId } from "@/lib/auth";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { Timer } from "@/components/exam/Timer";
-import { OxSubmitButton } from "@/components/exam/OxSubmitButton";
-import { submitAnswerAction } from "@/app/exam/actions";
+import { ExamRunner, type ExamQuestion } from "@/components/exam/ExamRunner";
 
+// 受験画面の入口。問題文は最初に全問まとめて取得し、以降の画面切り替えは端末内で行う
+// (回答のたびにサーバーへ問題を取りに行かないため、切り替えが一瞬で済む)。
+// URLの番号は入口としてのみ使い、実際の開始位置は「まだ回答していない最初の問題」から決める。
 export default async function ExamQuestionPage({
   params,
 }: {
@@ -19,105 +19,46 @@ export default async function ExamQuestionPage({
   if (!userId) redirect("/login");
 
   const supabase = await createClient();
-  // 受験セッションと「この番号に回答済みか」は互いに依存しないので、同時に問い合わせて待ち時間を減らす。
-  const [{ data: session }, { data: existingAnswer }] = await Promise.all([
+  // 受験セッションと回答済みの一覧は互いに依存しないので、同時に問い合わせて待ち時間を減らす。
+  const [{ data: session }, { data: answers }] = await Promise.all([
     supabase
       .from("exam_sessions")
       .select("id, student_id, question_ids, started_at, status")
       .eq("id", sessionId)
       .single(),
-    supabase
-      .from("exam_answers")
-      .select("id")
-      .eq("session_id", sessionId)
-      .eq("order_index", index)
-      .maybeSingle(),
+    supabase.from("exam_answers").select("order_index").eq("session_id", sessionId),
   ]);
 
   if (!session || session.student_id !== userId) notFound();
   if (session.status === "completed") redirect(`/exam/${sessionId}/result`);
 
   const total = session.question_ids.length;
-  if (index > total) notFound();
+  if (total === 0) notFound();
 
-  if (existingAnswer) {
-    redirect(index >= total ? `/exam/${sessionId}/result` : `/exam/${sessionId}/q/${index + 1}`);
+  // 問題文は正解を含まない列だけを取得する(正解は端末に送らない)。
+  const { data: rows } = await supabase
+    .from("questions")
+    .select("id, question_text")
+    .in("id", session.question_ids);
+
+  const textById = new Map((rows ?? []).map((r) => [r.id, r.question_text]));
+  const questions: ExamQuestion[] = [];
+  for (const id of session.question_ids) {
+    const text = textById.get(id);
+    if (text === undefined) notFound();
+    questions.push({ id, text });
   }
 
-  const questionId = session.question_ids[index - 1];
-
-  const { data: question } = await supabase
-    .from("questions")
-    .select("question_text")
-    .eq("id", questionId)
-    .single();
-
-  if (!question) notFound();
+  const answered = new Set((answers ?? []).map((a) => a.order_index));
+  let initialIndex = 0;
+  while (initialIndex < total && answered.has(initialIndex + 1)) initialIndex += 1;
 
   return (
-    <ExamShell sessionId={sessionId} index={index} total={total} startedAt={session.started_at}>
-      <QuestionView sessionId={sessionId} index={index} questionText={question.question_text} />
-    </ExamShell>
-  );
-}
-
-function ExamShell({
-  sessionId,
-  index,
-  total,
-  startedAt,
-  children,
-}: {
-  sessionId: string;
-  index: number;
-  total: number;
-  startedAt: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-8 pb-28 pt-12 sm:pb-12">
-      <div className="mb-16 flex items-center justify-between gap-8">
-        <div className="flex-1">
-          <ProgressBar current={index} total={total} />
-        </div>
-        <Timer startedAt={startedAt} />
-      </div>
-      {children}
-      <p className="mt-auto pt-16 text-center font-num text-[10px] text-line">
-        SESSION {sessionId.slice(0, 8)}
-      </p>
-    </div>
-  );
-}
-
-function QuestionView({
-  sessionId,
-  index,
-  questionText,
-}: {
-  sessionId: string;
-  index: number;
-  questionText: string;
-}) {
-  return (
-    <div className="flex flex-1 flex-col justify-center">
-      <p className="mb-16 text-center text-lg leading-loose tracking-wide">{questionText}</p>
-
-      <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t border-line bg-paper sm:static sm:z-auto sm:gap-6 sm:border-0 sm:bg-transparent">
-        <form action={submitAnswerAction} className="contents">
-          <input type="hidden" name="sessionId" value={sessionId} />
-          <input type="hidden" name="index" value={index} />
-          <input type="hidden" name="answer" value="false" />
-          <OxSubmitButton symbol="×" />
-        </form>
-
-        <form action={submitAnswerAction} className="contents">
-          <input type="hidden" name="sessionId" value={sessionId} />
-          <input type="hidden" name="index" value={index} />
-          <input type="hidden" name="answer" value="true" />
-          <OxSubmitButton symbol="◯" />
-        </form>
-      </div>
-    </div>
+    <ExamRunner
+      sessionId={sessionId}
+      startedAt={session.started_at}
+      questions={questions}
+      initialIndex={initialIndex}
+    />
   );
 }

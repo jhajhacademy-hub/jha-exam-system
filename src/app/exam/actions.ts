@@ -152,68 +152,133 @@ export async function discardAndRestartExamAction(formData: FormData) {
   redirect(`/exam/${sessionId}/q/1`);
 }
 
-export async function submitAnswerAction(formData: FormData) {
-  const sessionId = String(formData.get("sessionId"));
-  const index = Number(formData.get("index"));
-  const userAnswer = formData.get("answer") === "true";
+export type ExamActionResult =
+  | { ok: true }
+  | { ok: false; retryable: boolean; message: string };
 
-  const userId = await getCurrentUserId();
-  if (!userId) redirect("/login");
-  const supabase = await createClient();
+const SESSION_GONE_MESSAGE =
+  "受験情報が見つかりませんでした。お手数ですが、マイページから受験をやり直してください。";
+const LOGIN_EXPIRED_MESSAGE =
+  "ログインの有効期限が切れました。再度ログインし、マイページから受験を再開してください(回答済みの分は保存されています)。";
 
-  const { data: session, error: sessionError } = await supabase
-    .from("exam_sessions")
-    .select("id, student_id, question_ids, status, started_at")
-    .eq("id", sessionId)
-    .single();
+/**
+ * 1問分の回答を保存する(画面は先に次の問題へ進み、この処理は裏で順番に呼ばれる)。
+ * 正解の判定はここ(サーバー)だけで行う。
+ */
+export async function saveAnswerAction(input: {
+  sessionId: string;
+  index: number;
+  questionId: string;
+  answer: boolean;
+}): Promise<ExamActionResult> {
+  try {
+    const { sessionId, index, questionId, answer } = input;
+    if (!Number.isInteger(index) || index < 1) {
+      return { ok: false, retryable: false, message: SESSION_GONE_MESSAGE };
+    }
 
-  if (sessionError || !session || session.student_id !== userId) {
-    redirect("/mypage");
+    const userId = await getCurrentUserId();
+    if (!userId) return { ok: false, retryable: false, message: LOGIN_EXPIRED_MESSAGE };
+    const supabase = await createClient();
+
+    // 受験セッションと問題は互いに依存しないので同時に取得する。
+    const [sessionRes, questionRes] = await Promise.all([
+      supabase
+        .from("exam_sessions")
+        .select("id, student_id, question_ids, status")
+        .eq("id", sessionId)
+        .maybeSingle(),
+      supabase.from("questions").select("id, category_id, answer").eq("id", questionId).maybeSingle(),
+    ]);
+
+    // 通信やDBの一時的な不調は、呼び出し側が自動で再送する。
+    if (sessionRes.error || questionRes.error) {
+      return { ok: false, retryable: true, message: "一時的に保存できませんでした。" };
+    }
+
+    const session = sessionRes.data;
+    const question = questionRes.data;
+    if (!session || session.student_id !== userId || !question) {
+      return { ok: false, retryable: false, message: SESSION_GONE_MESSAGE };
+    }
+    // すでに採点済み(別の画面で終了した等)なら、保存は不要。
+    if (session.status === "completed") return { ok: true };
+
+    // 画面から送られた問題IDが、この受験セッションのこの番号の問題と一致することを確認する。
+    if (session.question_ids[index - 1] !== questionId) {
+      return { ok: false, retryable: false, message: SESSION_GONE_MESSAGE };
+    }
+
+    const total = session.question_ids.length;
+    const isLast = index >= total;
+
+    // 回答の保存と「どこまで進んだか」の更新は互いに依存しないので同時に行う。
+    const [{ error: insertError }] = await Promise.all([
+      supabase.from("exam_answers").insert({
+        session_id: sessionId,
+        question_id: questionId,
+        category_id: question.category_id,
+        order_index: index,
+        user_answer: answer,
+        is_correct: question.answer === answer,
+      }),
+      isLast
+        ? null
+        : supabase.from("exam_sessions").update({ current_index: index }).eq("id", sessionId),
+    ]);
+
+    // 23505 = unique_violation(再送などによる重複は、保存済みとして扱う)
+    if (insertError && insertError.code !== "23505") {
+      return { ok: false, retryable: true, message: "一時的に保存できませんでした。" };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, retryable: true, message: "一時的に保存できませんでした。" };
   }
-  if (session.status === "completed") redirect(`/exam/${sessionId}/result`);
+}
 
-  const total = session.question_ids.length;
-  const questionId = session.question_ids[index - 1];
-  if (!questionId) redirect(`/exam/${sessionId}/q/1`);
+/**
+ * 全問の回答が保存されたあとに呼ぶ。採点して結果を確定し、通知メールを送る。
+ * 何度呼ばれても結果とメールは1回だけ(すでに確定済みなら何もしない)。
+ */
+export async function finishExamAction(sessionId: string): Promise<ExamActionResult> {
+  try {
+    const userId = await getCurrentUserId();
+    if (!userId) return { ok: false, retryable: false, message: LOGIN_EXPIRED_MESSAGE };
+    const supabase = await createClient();
 
-  const { data: question, error: questionError } = await supabase
-    .from("questions")
-    .select("id, category_id, answer")
-    .eq("id", questionId)
-    .single();
-  if (questionError || !question) throw questionError;
+    const [sessionRes, answersRes] = await Promise.all([
+      supabase
+        .from("exam_sessions")
+        .select("id, student_id, question_ids, status, started_at")
+        .eq("id", sessionId)
+        .maybeSingle(),
+      supabase.from("exam_answers").select("is_correct").eq("session_id", sessionId),
+    ]);
 
-  const isCorrect = question.answer === userAnswer;
+    if (sessionRes.error || answersRes.error) {
+      return { ok: false, retryable: true, message: "一時的に採点できませんでした。" };
+    }
 
-  const isLast = index >= total;
+    const session = sessionRes.data;
+    if (!session || session.student_id !== userId) {
+      return { ok: false, retryable: false, message: SESSION_GONE_MESSAGE };
+    }
+    if (session.status === "completed") return { ok: true };
 
-  // 回答の保存と「どこまで進んだか」の更新は互いに依存しないので同時に行う(最終問題は完了処理を下で行う)。
-  const [{ error: insertError }] = await Promise.all([
-    supabase.from("exam_answers").insert({
-      session_id: sessionId,
-      question_id: questionId,
-      category_id: question.category_id,
-      order_index: index,
-      user_answer: userAnswer,
-      is_correct: isCorrect,
-    }),
-    isLast
-      ? null
-      : supabase.from("exam_sessions").update({ current_index: index }).eq("id", sessionId),
-  ]);
-  if (insertError && insertError.code !== "23505") {
-    // 23505 = unique_violation (二重送信などによる重複回答は無視して先へ進める)
-    throw insertError;
-  }
+    const total = session.question_ids.length;
+    const answers = answersRes.data ?? [];
+    if (answers.length < total) {
+      return {
+        ok: false,
+        retryable: false,
+        message:
+          "保存できていない回答があります。ページを再読み込みして、続きから回答してください。",
+      };
+    }
 
-  if (isLast) {
-    const { data: answers, error: answersError } = await supabase
-      .from("exam_answers")
-      .select("is_correct")
-      .eq("session_id", sessionId);
-    if (answersError) throw answersError;
-
-    const correctCount = (answers ?? []).filter((a) => a.is_correct).length;
+    const correctCount = answers.filter((a) => a.is_correct).length;
     const { score, passed } = scoreExam(correctCount);
     const finishedAt = new Date();
     const durationSeconds = Math.max(
@@ -221,7 +286,8 @@ export async function submitAnswerAction(formData: FormData) {
       Math.floor((finishedAt.getTime() - new Date(session.started_at).getTime()) / 1000)
     );
 
-    const { error: updateError } = await supabase
+    // まだ「受験中」のものだけを確定する。同時に2回呼ばれても、確定できるのは片方だけ。
+    const { data: updated, error: updateError } = await supabase
       .from("exam_sessions")
       .update({
         status: "completed",
@@ -231,28 +297,35 @@ export async function submitAnswerAction(formData: FormData) {
         passed,
         current_index: total,
       })
-      .eq("id", sessionId);
-    if (updateError) throw updateError;
-
-    const [{ data: studentProfile }, { data: settings }] = await Promise.all([
-      supabase.from("profiles").select("name, age, student_code, email").eq("id", userId).single(),
-      supabase.from("site_settings").select("notification_emails").eq("id", 1).single(),
-    ]);
-
-    if (studentProfile && settings?.notification_emails?.length) {
-      await sendExamCompletionEmail(settings.notification_emails, {
-        name: studentProfile.name,
-        age: studentProfile.age,
-        studentCode: studentProfile.student_code,
-        email: studentProfile.email,
-        finishedAt,
-        score,
-        passed,
-      });
+      .eq("id", sessionId)
+      .eq("status", "in_progress")
+      .select("id");
+    if (updateError) {
+      return { ok: false, retryable: true, message: "一時的に採点できませんでした。" };
     }
 
-    redirect(`/exam/${sessionId}/result`);
-  }
+    // 確定したのが自分のときだけ、通知メールを送る。
+    if (updated && updated.length > 0) {
+      const [{ data: studentProfile }, { data: settings }] = await Promise.all([
+        supabase.from("profiles").select("name, age, student_code, email").eq("id", userId).single(),
+        supabase.from("site_settings").select("notification_emails").eq("id", 1).single(),
+      ]);
 
-  redirect(`/exam/${sessionId}/q/${index + 1}`);
+      if (studentProfile && settings?.notification_emails?.length) {
+        await sendExamCompletionEmail(settings.notification_emails, {
+          name: studentProfile.name,
+          age: studentProfile.age,
+          studentCode: studentProfile.student_code,
+          email: studentProfile.email,
+          finishedAt,
+          score,
+          passed,
+        });
+      }
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, retryable: true, message: "一時的に採点できませんでした。" };
+  }
 }
