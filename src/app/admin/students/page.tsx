@@ -17,19 +17,18 @@ export default async function AdminStudentsPage({
   const dir = params.dir === "desc" ? "desc" : "asc";
 
   const supabase = await createClient();
-  const { data: students } = await supabase
-    .from("profiles")
-    .select("id, student_code, name, age, created_at")
-    .eq("role", "student");
-
-  const studentIds = (students ?? []).map((s) => s.id);
-
-  const { data: sessions } = await supabase
-    .from("exam_sessions")
-    .select("student_id, started_at, passed")
-    .eq("status", "completed")
-    .in("student_id", studentIds.length > 0 ? studentIds : ["00000000-0000-0000-0000-000000000000"])
-    .order("started_at", { ascending: true });
+  // 受験者と受験履歴は互いに依存しないので同時に取得する(履歴は下で受験者ごとに振り分ける)。
+  const [{ data: students }, { data: sessions }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, student_code, name, age, created_at")
+      .eq("role", "student"),
+    supabase
+      .from("exam_sessions")
+      .select("student_id, started_at, passed")
+      .eq("status", "completed")
+      .order("started_at", { ascending: true }),
+  ]);
 
   const sessionsByStudent = new Map<string, { started_at: string; passed: boolean | null }[]>();
   for (const s of sessions ?? []) {

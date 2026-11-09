@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/types/database.types";
@@ -14,16 +15,25 @@ export function studentCodeToLoginEmail(studentCode: string): string {
   return `${studentCode.trim().toLowerCase()}@${LOGIN_EMAIL_DOMAIN}`;
 }
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+/**
+ * ログイン中のユーザーID。トークンの署名をその場で検証するため、Supabaseへの通信が要らない
+ * (署名鍵は一度取得すると使い回される)。無効化などの状態確認は profiles.status 側で行う。
+ */
+export const getCurrentUserId = cache(async (): Promise<string | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data } = await supabase.auth.getClaims();
+  return data?.claims.sub ?? null;
+});
 
-  const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+// cache() により、同じ画面の表示中(layout と page など)に何度呼んでも通信は1回で済む。
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
+
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
   return data;
-}
+});
 
 export function isStaffRole(role: Profile["role"]): boolean {
   return role === "admin" || role === "operator";

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentUserId } from "@/lib/auth";
 import { LinkButton } from "@/components/ui/Button";
 import { formatDuration, POINTS_PER_QUESTION, PASS_SCORE } from "@/lib/exam-logic";
 import { PassEffect } from "@/components/exam/PassEffect";
@@ -12,26 +12,28 @@ export default async function ExamResultPage({
 }) {
   const { sessionId } = await params;
 
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
 
   const supabase = await createClient();
-  const { data: session } = await supabase
-    .from("exam_sessions")
-    .select("id, student_id, status, total_score, passed, duration_seconds, question_ids")
-    .eq("id", sessionId)
-    .single();
+  // 結果と各問題の回答は互いに依存しないので、同時に問い合わせて待ち時間を減らす。
+  const [{ data: session }, { data: rawAnswers }] = await Promise.all([
+    supabase
+      .from("exam_sessions")
+      .select("id, student_id, status, total_score, passed, duration_seconds, question_ids")
+      .eq("id", sessionId)
+      .single(),
+    supabase
+      .from("exam_answers")
+      .select("order_index, user_answer, is_correct, questions(question_text, explanation, answer)")
+      .eq("session_id", sessionId)
+      .order("order_index", { ascending: true }),
+  ]);
 
-  if (!session || session.student_id !== profile.id) notFound();
+  if (!session || session.student_id !== userId) notFound();
   if (session.status !== "completed") redirect(`/exam/${sessionId}/q/1`);
 
   const fullScore = session.question_ids.length * POINTS_PER_QUESTION;
-
-  const { data: rawAnswers } = await supabase
-    .from("exam_answers")
-    .select("order_index, user_answer, is_correct, questions(question_text, explanation, answer)")
-    .eq("session_id", sessionId)
-    .order("order_index", { ascending: true });
 
   const answers = (rawAnswers ?? []).map((a) => {
     const question = Array.isArray(a.questions) ? a.questions[0] : a.questions;

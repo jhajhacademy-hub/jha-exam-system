@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUserId } from "@/lib/auth";
 import { pickBalancedQuestions, scoreExam, TOTAL_QUESTIONS } from "@/lib/exam-logic";
 import { sendExamCompletionEmail, sendRetakeRequestEmail } from "@/lib/mailer";
 import type { Database } from "@/types/database.types";
@@ -49,16 +50,14 @@ async function createNewExamSession(
 }
 
 export async function startExamAction() {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const { count: completedCount } = await supabase
     .from("exam_sessions")
     .select("id", { count: "exact", head: true })
-    .eq("student_id", user.id)
+    .eq("student_id", userId)
     .eq("status", "completed");
 
   // 1回目は無条件。2回目以降は承認済みの再受験申請が必要。
@@ -66,7 +65,7 @@ export async function startExamAction() {
     const { data: approvedRequest } = await supabase
       .from("retake_requests")
       .select("id")
-      .eq("student_id", user.id)
+      .eq("student_id", userId)
       .eq("status", "approved")
       .order("requested_at", { ascending: false })
       .limit(1)
@@ -83,22 +82,20 @@ export async function startExamAction() {
       .eq("id", approvedRequest.id);
   }
 
-  const sessionId = await createNewExamSession(supabase, user.id);
+  const sessionId = await createNewExamSession(supabase, userId);
 
   redirect(`/exam/${sessionId}/q/1`);
 }
 
 export async function requestRetakeAction() {
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const { data: existing } = await supabase
     .from("retake_requests")
     .select("id, status")
-    .eq("student_id", user.id)
+    .eq("student_id", userId)
     .order("requested_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -109,14 +106,14 @@ export async function requestRetakeAction() {
 
   const requestedAt = new Date();
   const { error } = await supabase.from("retake_requests").insert({
-    student_id: user.id,
+    student_id: userId,
     status: "pending",
     requested_at: requestedAt.toISOString(),
   });
   if (error) throw error;
 
   const [{ data: studentProfile }, { data: settings }] = await Promise.all([
-    supabase.from("profiles").select("name, age, student_code, email").eq("id", user.id).single(),
+    supabase.from("profiles").select("name, age, student_code, email").eq("id", userId).single(),
     supabase.from("site_settings").select("retake_notification_emails").eq("id", 1).single(),
   ]);
 
@@ -136,11 +133,9 @@ export async function requestRetakeAction() {
 export async function discardAndRestartExamAction(formData: FormData) {
   const staleSessionId = String(formData.get("sessionId") ?? "");
 
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   if (staleSessionId) {
     const admin = createAdminClient();
@@ -148,11 +143,11 @@ export async function discardAndRestartExamAction(formData: FormData) {
       .from("exam_sessions")
       .delete()
       .eq("id", staleSessionId)
-      .eq("student_id", user.id)
+      .eq("student_id", userId)
       .eq("status", "in_progress");
   }
 
-  const sessionId = await createNewExamSession(supabase, user.id);
+  const sessionId = await createNewExamSession(supabase, userId);
 
   redirect(`/exam/${sessionId}/q/1`);
 }
@@ -162,11 +157,9 @@ export async function submitAnswerAction(formData: FormData) {
   const index = Number(formData.get("index"));
   const userAnswer = formData.get("answer") === "true";
 
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const { data: session, error: sessionError } = await supabase
     .from("exam_sessions")
@@ -174,7 +167,7 @@ export async function submitAnswerAction(formData: FormData) {
     .eq("id", sessionId)
     .single();
 
-  if (sessionError || !session || session.student_id !== user.id) {
+  if (sessionError || !session || session.student_id !== userId) {
     redirect("/mypage");
   }
   if (session.status === "completed") redirect(`/exam/${sessionId}/result`);
@@ -192,20 +185,28 @@ export async function submitAnswerAction(formData: FormData) {
 
   const isCorrect = question.answer === userAnswer;
 
-  const { error: insertError } = await supabase.from("exam_answers").insert({
-    session_id: sessionId,
-    question_id: questionId,
-    category_id: question.category_id,
-    order_index: index,
-    user_answer: userAnswer,
-    is_correct: isCorrect,
-  });
+  const isLast = index >= total;
+
+  // 回答の保存と「どこまで進んだか」の更新は互いに依存しないので同時に行う(最終問題は完了処理を下で行う)。
+  const [{ error: insertError }] = await Promise.all([
+    supabase.from("exam_answers").insert({
+      session_id: sessionId,
+      question_id: questionId,
+      category_id: question.category_id,
+      order_index: index,
+      user_answer: userAnswer,
+      is_correct: isCorrect,
+    }),
+    isLast
+      ? null
+      : supabase.from("exam_sessions").update({ current_index: index }).eq("id", sessionId),
+  ]);
   if (insertError && insertError.code !== "23505") {
     // 23505 = unique_violation (二重送信などによる重複回答は無視して先へ進める)
     throw insertError;
   }
 
-  if (index >= total) {
+  if (isLast) {
     const { data: answers, error: answersError } = await supabase
       .from("exam_answers")
       .select("is_correct")
@@ -234,7 +235,7 @@ export async function submitAnswerAction(formData: FormData) {
     if (updateError) throw updateError;
 
     const [{ data: studentProfile }, { data: settings }] = await Promise.all([
-      supabase.from("profiles").select("name, age, student_code, email").eq("id", user.id).single(),
+      supabase.from("profiles").select("name, age, student_code, email").eq("id", userId).single(),
       supabase.from("site_settings").select("notification_emails").eq("id", 1).single(),
     ]);
 
@@ -252,8 +253,6 @@ export async function submitAnswerAction(formData: FormData) {
 
     redirect(`/exam/${sessionId}/result`);
   }
-
-  await supabase.from("exam_sessions").update({ current_index: index }).eq("id", sessionId);
 
   redirect(`/exam/${sessionId}/q/${index + 1}`);
 }

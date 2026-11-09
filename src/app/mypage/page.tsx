@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentProfile, getCurrentUserId } from "@/lib/auth";
 import { LinkButton } from "@/components/ui/Button";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDuration } from "@/lib/exam-logic";
@@ -12,25 +12,37 @@ import {
 import { logoutAction } from "@/app/login/actions";
 
 export default async function MyPage() {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
 
   const supabase = await createClient();
-  const { data: sessions } = await supabase
-    .from("exam_sessions")
-    .select("id, started_at, total_score, passed, duration_seconds, status")
-    .eq("student_id", profile.id)
-    .eq("status", "completed")
-    .order("started_at", { ascending: false });
-
-  const { data: inProgressSession } = await supabase
-    .from("exam_sessions")
-    .select("id, question_ids")
-    .eq("student_id", profile.id)
-    .eq("status", "in_progress")
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // 互いに依存しない4つの問い合わせを同時に実行して、待ち時間を減らす。
+  const [profile, { data: sessions }, { data: inProgressSession }, { data: latestRetakeRequest }] =
+    await Promise.all([
+      getCurrentProfile(),
+      supabase
+        .from("exam_sessions")
+        .select("id, started_at, total_score, passed, duration_seconds, status")
+        .eq("student_id", userId)
+        .eq("status", "completed")
+        .order("started_at", { ascending: false }),
+      supabase
+        .from("exam_sessions")
+        .select("id, question_ids")
+        .eq("student_id", userId)
+        .eq("status", "in_progress")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("retake_requests")
+        .select("status")
+        .eq("student_id", userId)
+        .order("requested_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+  if (!profile) redirect("/login");
 
   let resumeInfo: { sessionId: string; resumeIndex: number; total: number } | null = null;
   if (inProgressSession) {
@@ -44,14 +56,6 @@ export default async function MyPage() {
   }
 
   const hasCompletedBefore = (sessions ?? []).length > 0;
-
-  const { data: latestRetakeRequest } = await supabase
-    .from("retake_requests")
-    .select("status")
-    .eq("student_id", profile.id)
-    .order("requested_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-8 py-16">

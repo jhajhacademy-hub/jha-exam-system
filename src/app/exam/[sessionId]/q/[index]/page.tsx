@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentUserId } from "@/lib/auth";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Timer } from "@/components/exam/Timer";
 import { OxSubmitButton } from "@/components/exam/OxSubmitButton";
@@ -13,35 +13,38 @@ export default async function ExamQuestionPage({
 }) {
   const { sessionId, index: indexParam } = await params;
   const index = Number(indexParam);
+  if (!Number.isInteger(index) || index < 1) notFound();
 
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const userId = await getCurrentUserId();
+  if (!userId) redirect("/login");
 
   const supabase = await createClient();
-  const { data: session } = await supabase
-    .from("exam_sessions")
-    .select("id, student_id, question_ids, started_at, status")
-    .eq("id", sessionId)
-    .single();
+  // 受験セッションと「この番号に回答済みか」は互いに依存しないので、同時に問い合わせて待ち時間を減らす。
+  const [{ data: session }, { data: existingAnswer }] = await Promise.all([
+    supabase
+      .from("exam_sessions")
+      .select("id, student_id, question_ids, started_at, status")
+      .eq("id", sessionId)
+      .single(),
+    supabase
+      .from("exam_answers")
+      .select("id")
+      .eq("session_id", sessionId)
+      .eq("order_index", index)
+      .maybeSingle(),
+  ]);
 
-  if (!session || session.student_id !== profile.id) notFound();
+  if (!session || session.student_id !== userId) notFound();
   if (session.status === "completed") redirect(`/exam/${sessionId}/result`);
 
   const total = session.question_ids.length;
-  if (!Number.isInteger(index) || index < 1 || index > total) notFound();
-
-  const questionId = session.question_ids[index - 1];
-
-  const { data: existingAnswer } = await supabase
-    .from("exam_answers")
-    .select("id")
-    .eq("session_id", sessionId)
-    .eq("question_id", questionId)
-    .maybeSingle();
+  if (index > total) notFound();
 
   if (existingAnswer) {
     redirect(index >= total ? `/exam/${sessionId}/result` : `/exam/${sessionId}/q/${index + 1}`);
   }
+
+  const questionId = session.question_ids[index - 1];
 
   const { data: question } = await supabase
     .from("questions")

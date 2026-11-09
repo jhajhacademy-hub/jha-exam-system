@@ -27,27 +27,27 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims はトークンの署名をその場で検証するのでSupabaseへの通信が要らない(期限切れ時のみ更新通信)。
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims.sub ?? null;
 
   const { pathname } = request.nextUrl;
   const isAdminPath = pathname.startsWith(ADMIN_PREFIX);
   const isAdminOnlyPath = ADMIN_ONLY_PREFIXES.some((p) => pathname.startsWith(p));
   const isStudentPath = STUDENT_PREFIXES.some((p) => pathname.startsWith(p));
 
-  if (!user && (isAdminPath || isStudentPath)) {
+  if (!userId && (isAdminPath || isStudentPath)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && (isAdminPath || isStudentPath || pathname === "/login")) {
+  if (userId && (isAdminPath || isStudentPath || pathname === "/login")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, status")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (profile?.status !== "active") {

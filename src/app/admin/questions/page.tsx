@@ -15,11 +15,6 @@ export default async function AdminQuestionsPage({
   const q = (params.q ?? "").trim();
 
   const supabase = await createClient();
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id, name")
-    .order("sort_order");
-
   let query = supabase
     .from("questions")
     .select("id, question_no, question_text, answer, categories(name)")
@@ -29,7 +24,11 @@ export default async function AdminQuestionsPage({
   if (categoryId) query = query.eq("category_id", categoryId);
   if (q) query = query.ilike("question_text", `%${q}%`);
 
-  const { data: questions } = await query;
+  // カテゴリ一覧と問題一覧は互いに依存しないので同時に取得する。
+  const [{ data: categories }, { data: questions }] = await Promise.all([
+    supabase.from("categories").select("id, name").order("sort_order"),
+    query,
+  ]);
 
   return (
     <div>

@@ -11,25 +11,27 @@ export default async function AdminSessionDetailPage({
   const { sessionId } = await params;
   const supabase = await createClient();
 
-  const { data: session } = await supabase
-    .from("exam_sessions")
-    .select(
-      "id, started_at, total_score, passed, duration_seconds, question_ids, profiles(name, age, student_code, email)"
-    )
-    .eq("id", sessionId)
-    .single();
+  // 受験結果と各問題の回答は互いに依存しないので、同時に取得して待ち時間を減らす。
+  const [{ data: session }, { data: answers }] = await Promise.all([
+    supabase
+      .from("exam_sessions")
+      .select(
+        "id, started_at, total_score, passed, duration_seconds, question_ids, profiles(name, age, student_code, email)"
+      )
+      .eq("id", sessionId)
+      .single(),
+    supabase
+      .from("exam_answers")
+      .select(
+        "order_index, user_answer, is_correct, questions(question_text, answer), categories(name)"
+      )
+      .eq("session_id", sessionId)
+      .order("order_index", { ascending: true }),
+  ]);
 
   if (!session) notFound();
 
   const profile = Array.isArray(session.profiles) ? session.profiles[0] : session.profiles;
-
-  const { data: answers } = await supabase
-    .from("exam_answers")
-    .select(
-      "order_index, user_answer, is_correct, questions(question_text, answer), categories(name)"
-    )
-    .eq("session_id", sessionId)
-    .order("order_index", { ascending: true });
 
   const rows = (answers ?? []).map((a) => {
     const question = Array.isArray(a.questions) ? a.questions[0] : a.questions;
